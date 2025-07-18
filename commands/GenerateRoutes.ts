@@ -4,6 +4,7 @@ import { stubsRoot } from '../stubs/main.js'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import * as crypto from 'node:crypto'
+import { pathToFileURL } from 'node:url'
 
 type ChimeraConfig = {
   outputPath: string
@@ -63,8 +64,7 @@ export default class GenerateRoutes extends BaseCommand {
   }
 
   async run() {
-    
-    await this.app.boot()
+    await import(pathToFileURL(this.app.makePath('start/routes.ts')).href)
     /**
      * Dynamically import services only when the command is executed.
      * This prevents errors during the build process (adonis-kit).
