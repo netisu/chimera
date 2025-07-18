@@ -1,0 +1,54 @@
+{
+  "type": "module",
+  "name": "@netisu/chimera",
+  "version": "1.1.5",
+  "description": "Use your AdonisJS named routes in your inertia frontend.",
+  "main": "build/index.js",
+  "files": [
+    "build/commands",
+    "build/stubs",
+    "build/configure.js",
+    "build/provider.js",
+    "build/index.js",
+    "build/index.d.ts"
+  ],
+  "scripts": {
+    "clean": "del-cli build",
+    "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
+    "build": "bun run clean && tsc",
+    "postbuild": "bun run copy:templates && bun run index:commands",
+    "index:commands": "adonis-kit index build/commands",
+    "prepublishOnly": "bun run build"
+  },
+  "exports": {
+    ".": "./build/index.js",
+    "./commands": "./build/commands/main.js"
+  },
+  "keywords": [
+    "adonisjs",
+    "routing",
+    "frontend",
+    "ziggy"
+  ],
+  "author": "Aeo Zatoichi Bax",
+  "license": "MIT",
+  "devDependencies": {
+    "@adonisjs/core": "^6.0.0",
+    "@adonisjs/eslint-config": "^2.1.0",
+    "@adonisjs/prettier-config": "^1.4.5",
+    "@adonisjs/tsconfig": "^1.2.0",
+    "@japa/assert": "^2.1.0",
+    "@japa/runner": "^3.1.2",
+    "@types/node": "^20.11.24",
+    "copyfiles": "^2.4.1",
+    "del-cli": "^5.1.0",
+    "typescript": "^5.3.3"
+  },
+  "peerDependencies": {
+    "@adonisjs/core": "^6.0.0"
+  },
+  "eslintConfig": {
+    "extends": "@adonisjs/eslint-config/package"
+  },
+  "prettier": "@adonisjs/prettier-config"
+}
