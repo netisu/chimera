@@ -64,12 +64,12 @@ export default class GenerateRoutes extends BaseCommand {
   }
 
   async run() {
-    await import(pathToFileURL(this.app.makePath('start/routes.ts')).href)
     /**
      * Dynamically import services only when the command is executed.
      * This prevents errors during the build process (adonis-kit).
      */
-    const { default: router } = await import('@adonisjs/core/services/router')
+    const router = await this.app.container.make('router')
+
     const { default: app } = await import('@adonisjs/core/services/app')
 
     this.logger.info('Generating frontend routes file...')
