@@ -4,7 +4,6 @@ import { stubsRoot } from '../stubs/main.js'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import * as crypto from 'node:crypto'
-import { pathToFileURL } from 'node:url'
 
 type ChimeraConfig = {
   outputPath: string
