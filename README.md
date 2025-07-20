@@ -17,7 +17,7 @@ Use your adonis named routes in your inertia frontend of choice.
 ```shell
 node ace add @netisu/chimera
 
-node ace configure  @netisu/chimera
+node ace configure @netisu/chimera
 ```
 
 ## Setup
