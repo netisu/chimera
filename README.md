@@ -10,7 +10,7 @@
 Netisu presents.....
 #  Chimera 🦁 🐍 🐐
 
-Use your adonis named routes in your inertia frontend of choice.
+Use your AdonisJS named routes in your inertia frontend.
 
 ## Installation
 
