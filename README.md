@@ -39,7 +39,7 @@ Route.get('users/:id', () => {
 Compile your routes file by running
 
 ```shell
-noce ace chimera:generate
+node ace chimera:generate
 ```
 
 By default it will export your routes at
