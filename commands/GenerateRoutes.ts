@@ -1,10 +1,10 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import type { RouteJSON } from '@adonisjs/core/types/http'
-import JavaScriptObfuscator from 'javascript-obfuscator'
 import { Secret } from '@adonisjs/core/helpers'
-import { writeFile, mkdir } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { stubsRoot } from '../stubs/main.js'
+import { readFile, writeFile, mkdir } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import * as crypto from 'node:crypto'
 
 // --- START: Code adapted from RoutesListFormatter ---
@@ -107,129 +107,221 @@ export default class GenerateRoutes extends BaseCommand {
   }
   // --- START: Methods adapted from RoutesListFormatter ---
 
+  /**
+   * Test if a route clears the applied filters.
+   */
+  #isAllowedByFilters(route: SerializedRoute) {
+    let allowRoute = true
+
+    if (this.middleware) {
+      allowRoute = this.middleware.every((name) => {
+        if (name === '*') return route.middleware.length > 0
+        return route.middleware.includes(name)
+      })
+    }
+
+    if (allowRoute && this.ignoreMiddleware) {
+      allowRoute = this.ignoreMiddleware.every((name) => {
+        if (name === '*') return route.middleware.length === 0
+        return !route.middleware.includes(name)
+      })
+    }
+
+    if (!allowRoute) return false
+    if (!this.match) return true
+
+    if (route.name.includes(this.match)) return true
+    if (route.pattern.includes(this.match)) return true
+    if (
+      route.handler.type === 'controller'
+        ? route.handler.moduleNameOrPath.includes(this.match)
+        : route.handler.name.includes(this.match)
+    ) {
+      return true
+    }
+
+    return false
+  }
+
+  /**
+   * Serialize route middleware to an array of names.
+   */
+  #serializeMiddleware(middleware: RouteJSON['middleware']): string[] {
+    return [...middleware.all()].reduce<string[]>((result, one) => {
+      if (typeof one === 'function') {
+        result.push(one.name || 'closure')
+      } else if ('name' in one && one.name) {
+        result.push(one.name)
+      }
+      return result
+    }, [])
+  }
+
+  /**
+   * Serialize route handler reference to a display object.
+   */
+  async #serializeHandler(handler: RouteJSON['handler']): Promise<SerializedRoute['handler']> {
+    if ('moduleNameOrPath' in handler && typeof handler.moduleNameOrPath === 'string') {
+      return {
+        type: 'controller' as const,
+        moduleNameOrPath: handler.moduleNameOrPath,
+        method:
+          'method' in handler && typeof handler.method === 'string' ? handler.method : 'handle',
+      }
+    }
+
+    // If the guard fails, it's a closure.
+    return {
+      type: 'closure' as const,
+      name: 'name' in handler && handler.name ? handler.name : 'closure',
+      args: 'listArgs' in handler ? String(handler.listArgs) : undefined,
+    }
+  }
+  /**
+   * Serializes a raw route into a simplified object for filtering and display.
+   */
+  async #serializeRoute(route: RouteJSON): Promise<SerializedRoute> {
+    return {
+      name: route.name || '',
+      pattern: route.pattern,
+      methods: route.methods.filter((method) => method !== 'HEAD'),
+      handler: await this.#serializeHandler(route.handler),
+      middleware: this.#serializeMiddleware(route.middleware),
+    }
+  }
+
+  /**
+   * Formats route method for display.
+   */
+  #formatRouteMethod(method: string) {
+    return this.colors.dim(method)
+  }
+
+  /**
+   * Formats route pattern for display.
+   */
+  #formatRoutePattern(route: SerializedRoute) {
+    const pattern = route.pattern.replace(/:([^/]+)/g, (_, match) =>
+      this.colors.yellow(`:${match}`)
+    )
+    const name = route.name ? ` ${this.colors.dim(`(${route.name})`)}` : ''
+    return `${pattern}${name}`
+  }
+
+  /**
+   * Formats route handler for display.
+   */
+  #formatHandler(route: SerializedRoute) {
+    if (route.handler.type === 'controller') {
+      const controller = this.colors.cyan(route.handler.moduleNameOrPath)
+      const method = this.colors.cyan(route.handler.method)
+      return `${controller}.${method}`
+    }
+    const functionName = this.colors.cyan(route.handler.name)
+    const args = route.handler.args ? this.colors.dim(`(${route.handler.args})`) : ''
+    return `${functionName}${args}`
+  }
+
+  /**
+   * Formats route middleware for display.
+   */
+  #formatMiddleware(route: SerializedRoute) {
+    if (route.middleware.length > 2) {
+      const diff = route.middleware.length - 2
+      return this.colors.dim(`${route.middleware[0]}, ${route.middleware[1]}, and ${diff} more`)
+    }
+    return this.colors.dim(route.middleware.join(', '))
+  }
+
+  // --- END: Adapted Methods ---
+
   async run() {
     this.logger.info('♻️ Generating routes file...')
 
     try {
-      // --- 1. Get All Necessary Data ---
       const router = await this.app.container.make('router')
-      router.commit()
+      router.commit() // Ensure all routes are registered
 
       const app = this.app
       const chimeraConfig: ChimeraConfig = app.config.get('chimera', {})
       const outputPath = chimeraConfig.outputPath || 'resources/js/chimera.ts'
       const shouldObfuscate = chimeraConfig.obfuscate || false
 
+      const appKey: Secret<string> | undefined = app.config.get('app.appKey')
+      if (shouldObfuscate && !appKey) {
+        this.logger.error('Cannot obfuscate routes: APP_KEY is not defined in your .env file.')
+        return
+      }
+
       const allRoutesByDomain = router.toJSON()
       const adonisRoutes = Object.values(allRoutesByDomain).flat()
-      const namedRoutes = adonisRoutes.filter((r): r is RouteJSON & { name: string } => !!r.name)
 
+      // 1. Filter for named routes first, as they are the only ones we care about.
+      const namedRoutes = adonisRoutes.filter((r): r is RouteJSON & { name: string } => !!r.name)
       if (namedRoutes.length === 0) {
         this.logger.warning('No named routes found to process.')
         return
       }
 
-      // --- 2. Build the Raw Route Map ---
-      // We build the map with plain names because the entire code will be obfuscated later.
-      const { routeMap, nameMap } = this.buildAndMapRoutes(namedRoutes, false)
-
-      // --- 3. Construct the Final JavaScript Code as a String ---
-      // This string is a template of the final chimera.ts file.
-      const rawJavaScriptCode = `
-        const Chimera = {
-          routes: ${JSON.stringify(routeMap, null, 2)},
-          nameMap: ${JSON.stringify(nameMap, null, 2)},
-          obfuscate: false, // The client-side flag is always false
-
-          route(name, params={}, queryParams={}) {
-            if (typeof name !== "string") {
-              console.error("[Chimera] Invalid route name. Expected a string, but got:", name);
-              return "";
-            }
-            const keys = name.split(".");
-            let pattern = this.routes;
-            for (const key of keys) {
-              if (pattern && typeof pattern === "object" && key in pattern) {
-                pattern = pattern[key];
-              } else {
-                pattern = undefined;
-                break;
-              }
-            }
-            if (typeof pattern !== "string") {
-              console.error('[Chimera] Route "' + name + '" could not be found.');
-              return "";
-            }
-            let url = pattern;
-            for (const key in params) {
-              url = url.replace(":" + key, String(params[key]));
-            }
-            const searchParams = new URLSearchParams();
-            for (const key in queryParams) {
-              const value = queryParams[key];
-              if (value !== null && value !== undefined) {
-                searchParams.append(key, String(value));
-              }
-            }
-            const queryString = searchParams.toString();
-            return queryString ? url + "?" + queryString : url;
-          },
-
-          current(routeName) {
-            if (typeof window === "undefined") return false;
-            const urlPattern = this.route(routeName);
-            if (!urlPattern) return false;
-            const regexPattern = "^" + urlPattern.replace(/:[^\\s/]+/g, "([^/]+)").replace(/\\//g, "\\\\/") + "$";
-            const regex = new RegExp(regexPattern);
-            return regex.test(window.location.pathname);
-          },
-        };
-        export default Chimera;
-      `
-
-      let finalCode = rawJavaScriptCode
-
-      // --- 4. Obfuscate the Code (if enabled) ---
-      if (shouldObfuscate) {
-        this.logger.info('Obfuscating generated code with APP_KEY as seed...')
-
-        const appKey: Secret<string> | undefined = app.config.get('app.appKey')
-        if (!appKey) {
-          this.logger.error('Cannot obfuscate: APP_KEY is not defined.')
-          return
+      // 2. Serialize and apply advanced filters from command flags.
+      const processedRoutes: SerializedRoute[] = []
+      for (const route of namedRoutes) {
+        const serializedRoute = await this.#serializeRoute(route)
+        if (this.#isAllowedByFilters(serializedRoute)) {
+          processedRoutes.push(serializedRoute)
         }
-
-        const obfuscationResult = JavaScriptObfuscator.obfuscate(rawJavaScriptCode, {
-          compact: true,
-          controlFlowFlattening: true,
-          controlFlowFlatteningThreshold: 0.75,
-          deadCodeInjection: true,
-          deadCodeInjectionThreshold: 0.4,
-          debugProtection: false,
-          disableConsoleOutput: false,
-          identifierNamesGenerator: 'hexadecimal',
-          log: false,
-          numbersToExpressions: true,
-          renameGlobals: false,
-          selfDefending: true,
-          shuffleStringArray: true,
-          splitStrings: true,
-          splitStringsChunkLength: 10,
-          stringArray: true,
-          stringArrayEncoding: ['base64'],
-          stringArrayThreshold: 0.75,
-          transformObjectKeys: true,
-          unicodeEscapeSequence: false,
-          seed: appKey.release(),
-        })
-
-        finalCode = obfuscationResult.getObfuscatedCode()
       }
 
-      // --- 5. Write the Final Code to the File ---
+      if (processedRoutes.length === 0) {
+        this.logger.warning('No named routes matched the provided filters.')
+        return
+      }
+
+      this.logger.info(`Found ${processedRoutes.length} named routes to process.`)
+
+      // 3. Build the route map for the file.
+      const { routeMap, nameMap } = this.buildAndMapRoutes(
+        processedRoutes,
+        shouldObfuscate,
+        appKey?.release()
+      )
+
+      // 4. Generate the file from the stub.
+      const stubPath = join(stubsRoot, 'chimera.stub')
+      let stubContent = await readFile(stubPath, 'utf-8')
+      stubContent = stubContent
+        .replace('// __ROUTES_PLACEHOLDER__', `routes: ${JSON.stringify(routeMap, null, 2)},`)
+        .replace('// __NAME_MAP_PLACEHOLDER__', `nameMap: ${JSON.stringify(nameMap, null, 2)},`)
+        .replace('// __OBFUSCATION_PLACEHOLDER__', `obfuscate: ${shouldObfuscate},`)
+
       const finalPath = app.makePath(outputPath)
       await mkdir(dirname(finalPath), { recursive: true })
-      await writeFile(finalPath, finalCode, 'utf-8')
+      await writeFile(finalPath, stubContent, 'utf-8')
+
+      // 5. If --display flag is used, print the table to the console.
+      if (this.display) {
+        this.logger.info('Displaying generated routes:')
+        const table = this.ui
+          .table()
+          .head([
+            this.colors.dim('METHOD'),
+            this.colors.dim('ROUTE'),
+            { hAlign: 'right', content: this.colors.dim('HANDLER') },
+            { hAlign: 'right', content: this.colors.dim('MIDDLEWARE') },
+          ])
+
+        processedRoutes.forEach((route) => {
+          route.methods.forEach((method) => {
+            table.row([
+              this.#formatRouteMethod(method),
+              this.#formatRoutePattern(route),
+              { hAlign: 'right', content: this.#formatHandler(route) },
+              { hAlign: 'right', content: this.#formatMiddleware(route) },
+            ])
+          })
+        })
+        table.render()
+      }
 
       this.logger.success(`🎉 Routes file generated successfully at: ${outputPath}`)
     } catch (error) {

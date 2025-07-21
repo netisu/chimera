@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@netisu/chimera",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Use your AdonisJS named routes in your inertia frontend.",
   "main": "build/index.js",
   "files": [
@@ -55,7 +55,4 @@
     "type": "git",
     "url": "https://github.com/netisu/chimera.git"
   },
-  "dependencies": {
-    "javascript-obfuscator": "^4.1.1"
-  }
 }

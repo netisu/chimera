@@ -5,6 +5,7 @@
       "name": "@netisu/chimera",
       "dependencies": {
         "javascript-obfuscator": "^4.1.1",
+        "uglify-js": "^3.19.3",
       },
       "devDependencies": {
         "@adonisjs/core": "^6.0.0",
