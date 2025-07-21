@@ -59,36 +59,37 @@ export default class GenerateRoutes extends BaseCommand {
 
   // --- END: Flags ---
 
-  /**
-   * Hashes a value using SHA256 for obfuscation.
-   */
-  private hash(value: string): string {
-    return crypto.createHash('sha256').update(value).digest('hex').substring(0, 16)
-  }
 
   /**
    * Builds a nested route map from a flat array of AdonisJS routes.
    */
   private buildAndMapRoutes(
     routes: Pick<SerializedRoute, 'name' | 'pattern'>[],
-    obfuscate: boolean
+    obfuscate: boolean,
+    appKey?: any
   ): { routeMap: Record<string, any>; nameMap: Record<string, string> } {
     const routeMap: Record<string, any> = {}
     const nameMap: Record<string, string> = {}
 
+    // Hashing function that uses the APP_KEY as a salt
+    const getHashedKey = (segment: string) => {
+      // Create an HMAC (Hash-based Message Authentication Code)
+      // This securely combines the secret key with the value to be hashed.
+      return crypto.createHmac('sha256', appKey!).update(segment).digest('hex').substring(0, 8) // Keep the keys reasonably short
+    }
+
     routes.forEach((route) => {
+      if (!route.name) return
+
       const originalName = route.name
       const keys = originalName.split('.')
       let currentLevel = routeMap
-      const hashedKeys: string[] = []
 
-      keys.forEach((key: string, index: number) => {
-        const isLastKey = index === keys.length - 1
-        const processedKey = obfuscate ? this.hash(key) : key
-        if (obfuscate) {
-          hashedKeys.push(processedKey)
-        }
+      // Use the HMAC-hashed keys if obfuscating, otherwise use original names
+      const processedKeys = obfuscate ? keys.map(getHashedKey) : keys
 
+      processedKeys.forEach((processedKey, index) => {
+        const isLastKey = index === processedKeys.length - 1
         if (isLastKey) {
           currentLevel[processedKey] = route.pattern
         } else {
@@ -98,13 +99,12 @@ export default class GenerateRoutes extends BaseCommand {
       })
 
       if (obfuscate) {
-        nameMap[originalName] = hashedKeys.join('.')
+        nameMap[originalName] = processedKeys.join('.')
       }
     })
 
     return { routeMap, nameMap }
   }
-
   // --- START: Methods adapted from RoutesListFormatter ---
 
   /**
@@ -160,22 +160,23 @@ export default class GenerateRoutes extends BaseCommand {
   /**
    * Serialize route handler reference to a display object.
    */
-async #serializeHandler(handler: RouteJSON['handler']): Promise<SerializedRoute['handler']> {
-  if ('moduleNameOrPath' in handler && typeof handler.moduleNameOrPath === 'string') {
-    return {
-      type: 'controller' as const,
-      moduleNameOrPath: handler.moduleNameOrPath,
-      method: 'method' in handler && typeof handler.method === 'string' ? handler.method : 'handle',
-    };
-  }
+  async #serializeHandler(handler: RouteJSON['handler']): Promise<SerializedRoute['handler']> {
+    if ('moduleNameOrPath' in handler && typeof handler.moduleNameOrPath === 'string') {
+      return {
+        type: 'controller' as const,
+        moduleNameOrPath: handler.moduleNameOrPath,
+        method:
+          'method' in handler && typeof handler.method === 'string' ? handler.method : 'handle',
+      }
+    }
 
-  // If the guard fails, it's a closure.
-  return {
-    type: 'closure' as const,
-    name: 'name' in handler && handler.name ? handler.name : 'closure',
-    args: 'listArgs' in handler ? String(handler.listArgs) : undefined,
-  };
-}
+    // If the guard fails, it's a closure.
+    return {
+      type: 'closure' as const,
+      name: 'name' in handler && handler.name ? handler.name : 'closure',
+      args: 'listArgs' in handler ? String(handler.listArgs) : undefined,
+    }
+  }
   /**
    * Serializes a raw route into a simplified object for filtering and display.
    */
@@ -246,6 +247,12 @@ async #serializeHandler(handler: RouteJSON['handler']): Promise<SerializedRoute[
       const outputPath = chimeraConfig.outputPath || 'resources/js/chimera.ts'
       const shouldObfuscate = chimeraConfig.obfuscate || false
 
+      const appKey = app.config.get('app.appKey')
+      if (shouldObfuscate && !appKey) {
+        this.logger.error('Cannot obfuscate routes: APP_KEY is not defined in your .env file.')
+        return
+      }
+
       const allRoutesByDomain = router.toJSON()
       const adonisRoutes = Object.values(allRoutesByDomain).flat()
 
@@ -273,7 +280,7 @@ async #serializeHandler(handler: RouteJSON['handler']): Promise<SerializedRoute[
       this.logger.info(`Found ${processedRoutes.length} named routes to process.`)
 
       // 3. Build the route map for the file.
-      const { routeMap, nameMap } = this.buildAndMapRoutes(processedRoutes, shouldObfuscate)
+      const { routeMap, nameMap } = this.buildAndMapRoutes(processedRoutes, shouldObfuscate, appKey)
 
       // 4. Generate the file from the stub.
       const stubPath = join(stubsRoot, 'chimera.stub')
