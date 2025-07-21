@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@netisu/chimera",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Use your AdonisJS named routes in your inertia frontend.",
   "main": "build/index.js",
   "files": [
@@ -33,16 +33,16 @@
   "author": "Aeo Zatoichi Bax",
   "license": "MIT",
   "devDependencies": {
-    "@adonisjs/core": "^6.0.0",
+    "@adonisjs/core": "^6.19.0",
     "@adonisjs/eslint-config": "^2.1.0",
     "@adonisjs/prettier-config": "^1.4.5",
-    "@adonisjs/tsconfig": "^1.2.0",
-    "@japa/assert": "^2.1.0",
-    "@japa/runner": "^3.1.2",
-    "@types/node": "^20.11.24",
+    "@adonisjs/tsconfig": "^1.4.1",
+    "@japa/assert": "^4.1.0",
+    "@japa/runner": "^4.3.0",
+    "@types/node": "^24.0.15",
     "copyfiles": "^2.4.1",
-    "del-cli": "^5.1.0",
-    "typescript": "^5.3.3"
+    "del-cli": "^6.0.0",
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "@adonisjs/core": "^6.0.0"
@@ -54,5 +54,5 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/netisu/chimera.git"
-  },
+  }
 }
