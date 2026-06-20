@@ -53,7 +53,7 @@ but you can change this inside of the chimera config (at config/chimera.ts).
 Now you can use the `Chimera` helper to access your adonis routes:
 
 ```typescript
-import Chimera from 'resources/js/chimera'
+import { route } from 'resources/js/chimera'
 
 Chimera.route('users.index') // => `/users/1`
 
@@ -67,7 +67,7 @@ Chimera.route('users.show', { id: 1 }) // => `/users/1`
 ### Checking the Current Route
 
 ```typescript
-import Chimera from 'resources/js/chimera'
+import { current } from 'resources/js/chimera'
 
 Chimera.current('dashboard')
 ```
