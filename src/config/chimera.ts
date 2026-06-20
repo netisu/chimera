@@ -10,7 +10,7 @@ const chimeraConfig = {
    * When enabled, route names in the generated file will be hashed.
    */
   obfuscate: false,
-};
+}
 
 export default chimeraConfig
 

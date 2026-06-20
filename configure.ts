@@ -18,8 +18,8 @@ import type Configure from '@adonisjs/core/commands/configure'
 /**
  * Configures the package
  */
-export async function configure(command: Configure) {
-  const codemods = await command.createCodemods()
+export async function configure(_command: Configure) {
+  const codemods = await _command.createCodemods()
 
   // Add .js extension for ESM compatibility
 

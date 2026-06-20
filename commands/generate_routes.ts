@@ -1,8 +1,7 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import type { RouteJSON } from '@adonisjs/core/types/http'
-import { Secret } from '@adonisjs/core/helpers'
-import { stubsRoot } from '../stubs/main.js'
+import { stubsRoot } from '../stubs/main.ts'
 import { readFile, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import * as crypto from 'node:crypto'
@@ -73,9 +72,7 @@ export default class GenerateRoutes extends BaseCommand {
 
     // Hashing function that uses the APP_KEY as a salt
     const getHashedKey = (segment: string) => {
-      // Create an HMAC (Hash-based Message Authentication Code)
-      // This securely combines the secret key with the value to be hashed.
-      return crypto.createHmac('sha256', appKey!).update(segment).digest('hex').substring(0, 8) // Keep the keys reasonably short
+      return crypto.createHmac('sha256', appKey!).update(segment).digest('hex').substring(0, 8)
     }
 
     routes.forEach((route) => {
@@ -247,9 +244,9 @@ export default class GenerateRoutes extends BaseCommand {
       const outputPath = chimeraConfig.outputPath || 'resources/js/chimera.ts'
       const shouldObfuscate = chimeraConfig.obfuscate || false
 
-      const appKey: Secret<string> | undefined = app.config.get('app.appKey')
+      const appKey = app.config.get<string>('app.appKey')
       if (shouldObfuscate && !appKey) {
-        this.logger.error('Cannot obfuscate routes: APP_KEY is not defined in your .env file.')
+        this.logger.error('Cannot obfuscate routes: APP_KEY is not defined.')
         return
       }
 
@@ -280,11 +277,7 @@ export default class GenerateRoutes extends BaseCommand {
       this.logger.info(`Found ${processedRoutes.length} named routes to process.`)
 
       // 3. Build the route map for the file.
-      const { routeMap, nameMap } = this.buildAndMapRoutes(
-        processedRoutes,
-        shouldObfuscate,
-        appKey?.release()
-      )
+      const { routeMap, nameMap } = this.buildAndMapRoutes(processedRoutes, shouldObfuscate, appKey)
 
       // 4. Generate the file from the stub.
       const stubPath = join(stubsRoot, 'chimera.stub')

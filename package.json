@@ -2,26 +2,35 @@
   "type": "module",
   "name": "@netisu/chimera",
   "version": "1.2.7",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "description": "Use your AdonisJS named routes in your inertia frontend.",
   "main": "build/index.js",
   "files": [
-    "build/commands",
-    "build/stubs",
-    "build/configure.js",
-    "build/provider.js",
-    "build/index.js",
-    "build/index.d.ts"
+    "build",
+    "!build/bin",
+    "!build/tests"
   ],
   "scripts": {
-    "clean": "del-cli build",
     "copy:templates": "copyfiles \"stubs/**/*.stub\" build",
-    "build": "bun run clean && tsc",
-    "postbuild": "bun run copy:templates && bun run index:commands",
-    "index:commands": "adonis-kit index build/commands",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "quick:test": "node --import=@poppinss/ts-exec --enable-source-maps bin/test.ts",
+    "pretest": "bun run lint",
+    "test": "c8 bun run quick:test",
+    "precompile": "bun run lint",
+    "compile": "tsdown && tsc --emitDeclarationOnly --declaration",
+    "postcompile": "bun run copy:templates",
+    "build": "bun run compile",
+    "release": "release-it",
+    "version": "bun run build",
     "prepublishOnly": "bun run build"
   },
   "exports": {
     ".": "./build/index.js",
+    "./types": "./build/src/types.js",
     "./commands": "./build/commands/main.js"
   },
   "keywords": [
@@ -30,29 +39,95 @@
     "frontend",
     "ziggy"
   ],
-  "author": "Aeo Zatoichi Bax",
+  "author": "Tanmuzu M.",
   "license": "MIT",
   "devDependencies": {
-    "@adonisjs/core": "^6.19.0",
-    "@adonisjs/eslint-config": "^2.1.2",
-    "@adonisjs/prettier-config": "^1.4.5",
-    "@adonisjs/tsconfig": "^1.4.1",
-    "@japa/assert": "^4.1.1",
-    "@japa/runner": "^4.4.0",
-    "@types/node": "^24.3.0",
+    "@adonisjs/core": "^7.3.4",
+    "@adonisjs/eslint-config": "^3.1.0",
+    "@adonisjs/prettier-config": "^1.5.0",
+    "@adonisjs/tsconfig": "^2.0.0",
+    "@japa/assert": "^4.2.0",
+    "@japa/runner": "^5.3.0",
+    "@poppinss/ts-exec": "^1.4.4",
+    "@types/node": "^26.0.0",
     "copyfiles": "^2.4.1",
-    "del-cli": "^6.0.0",
-    "typescript": "^5.9.2"
+    "del-cli": "^7.0.0",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "@adonisjs/core": "^6.0.0"
+    "@adonisjs/core": "^7.0.0",
+    "@adonisjs/assembler": "^8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@adonisjs/assembler": {
+      "optional": true
+    }
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   },
   "eslintConfig": {
     "extends": "@adonisjs/eslint-config/package"
+  },
+  "tsdown": {
+    "entry": [
+      "./index.ts",
+      "./configure.ts"
+    ],
+    "outDir": "./build",
+    "clean": true,
+    "format": "esm",
+    "minify": "dce-only",
+    "fixedExtension": false,
+    "dts": false,
+    "treeshake": false,
+    "sourcemaps": false,
+    "target": "esnext"
+  },
+  "release-it": {
+    "git": {
+      "requireCleanWorkingDir": true,
+      "requireUpstream": true,
+      "commitMessage": "chore(release): ${version}",
+      "tagAnnotation": "v${version}",
+      "push": true,
+      "tagName": "v${version}"
+    },
+    "github": {
+      "release": true
+    },
+    "npm": {
+      "publish": true,
+      "skipChecks": true
+    },
+    "plugins": {
+      "@release-it/conventional-changelog": {
+        "preset": {
+          "name": "angular"
+        }
+      }
+    }
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "exclude": [
+      "tests/**"
+    ]
   },
   "prettier": "@adonisjs/prettier-config",
   "repository": {
     "type": "git",
     "url": "https://github.com/netisu/chimera.git"
+  },
+  "dependencies": {
+    "@adonisjs/assembler": "^8.4.0",
+    "@release-it/conventional-changelog": "^11.0.1",
+    "c8": "^11.0.0",
+    "release-it": "^20.2.0",
+    "tsdown": "^0.22.3"
   }
 }

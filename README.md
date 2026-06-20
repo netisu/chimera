@@ -1,4 +1,5 @@
 # @netisu/chimera
+
 ![](https://img.shields.io/npm/types/typescript?style=for-the-badge)
 <a href="https://adonisjs.com/">
 <img src="https://img.shields.io/badge/%E2%96%B2%20adonis-v6-5a45ff?style=for-the-badge">
@@ -8,7 +9,8 @@
 </a>
 
 Netisu presents.....
-#  Chimera 🦁 🐍 🐐
+
+# Chimera 🦁 🐍 🐐
 
 Use your AdonisJS named routes in your inertia frontend.
 
@@ -51,21 +53,21 @@ but you can change this inside of the chimera config (at config/chimera.ts).
 Now you can use the `Chimera` helper to access your adonis routes:
 
 ```typescript
-import Chimera from 'resources/js/chimera';
+import Chimera from 'resources/js/chimera'
 
-Chimera.route('users.index'); // => `/users/1`
+Chimera.route('users.index') // => `/users/1`
 
 /**
  * You can also pass path params as an array and they will populated
  * according to their order:
  */
-Chimera.route('users.show', { id: 1 }); // => `/users/1`
+Chimera.route('users.show', { id: 1 }) // => `/users/1`
 ```
 
 ### Checking the Current Route
 
 ```typescript
-import Chimera from 'resources/js/chimera';
+import Chimera from 'resources/js/chimera'
 
-Chimera.current('dashboard');
+Chimera.current('dashboard')
 ```
