@@ -101,6 +101,13 @@
       "publish": true,
       "skipChecks": true
     },
+    "hooks": {
+      "before:init": [
+        "bun run test",
+        "bun run build"
+      ],
+      "after:bump": "bun install"
+    },
     "plugins": {
       "@release-it/conventional-changelog": {
         "preset": {
