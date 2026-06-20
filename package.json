@@ -65,7 +65,7 @@
   },
   "publishConfig": {
     "access": "public",
-    "provenance": true
+    "provenance": false
   },
   "eslintConfig": {
     "extends": "@adonisjs/eslint-config/package"
