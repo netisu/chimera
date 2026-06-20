@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@netisu/chimera",
-  "version": "1.2.11",
+  "version": "1.2.7",
   "engines": {
     "node": ">=24.0.0"
   },
