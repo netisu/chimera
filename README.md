@@ -55,13 +55,13 @@ Now you can use the `Chimera` helper to access your adonis routes:
 ```typescript
 import { route } from 'resources/js/chimera'
 
-Chimera.route('users.index') // => `/users/1`
+route('users.index') // => `/users/1`
 
 /**
  * You can also pass path params as an array and they will populated
  * according to their order:
  */
-Chimera.route('users.show', { id: 1 }) // => `/users/1`
+route('users.show', { id: 1 }) // => `/users/1`
 ```
 
 ### Checking the Current Route
@@ -69,5 +69,5 @@ Chimera.route('users.show', { id: 1 }) // => `/users/1`
 ```typescript
 import { current } from 'resources/js/chimera'
 
-Chimera.current('dashboard')
+current('dashboard')
 ```
